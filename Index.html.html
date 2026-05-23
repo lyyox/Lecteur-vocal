@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0e0e0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lecteur Vocal">
+<title>Lecteur Vocal</title>
+
+<script>
+(function(){
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='110' fill='%230e0e0f'/><circle cx='256' cy='256' r='110' fill='none' stroke='%23c8f25a' stroke-width='32'/><polygon points='225,200 225,312 325,256' fill='%23c8f25a'/><circle cx='256' cy='256' r='160' fill='none' stroke='%232a2a2e' stroke-width='16'/><circle cx='256' cy='256' r='205' fill='none' stroke='%231e1e21' stroke-width='12'/></svg>`;
+  const blob = new Blob([decodeURIComponent(svg)], {type:'image/svg+xml'});
+  const url = URL.createObjectURL(blob);
+  const m = {name:"Lecteur Vocal",short_name:"Lecteur",display:"standalone",background_color:"#0e0e0f",theme_color:"#0e0e0f",start_url:".",icons:[{src:url,sizes:"512x512",type:"image/svg+xml",purpose:"any maskable"}]};
+  const mb = new Blob([JSON.stringify(m)],{type:'application/manifest+json'});
+  const ml = document.createElement('link'); ml.rel='manifest'; ml.href=URL.createObjectURL(mb); document.head.appendChild(ml);
+  const al = document.createElement('link'); al.rel='apple-touch-icon'; al.href=url; document.head.appendChild(al);
+})();
+</script>
+
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,700&display=swap" rel="stylesheet">
+
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#0e0e0f; --s1:#161618; --s2:#1e1e21; --brd:#2a2a2e;
+  --acc:#c8f25a; --acc2:#5af2b8; --txt:#e8e8e6;
+  --muted:#666; --danger:#f25a5a; --warn:#f2b95a; --info:#5ab4f2;
+  --safe:env(safe-area-inset-bottom,0px); --safel:env(safe-area-inset-left,0px);
+}
+
+body{background:var(--bg);color:var(--txt);font-family:'Bricolage Grotesque',sans-serif;
+  min-height:100dvh;display:flex;flex-direction:column;align-items:center;
+  padding:32px max(16px, var(--safel)) calc(50px + var(--safe));}
+
+body::before{content:'';position:fixed;top:-180px;left:50%;transform:translateX(-50%);
+  width:700px;height:380px;background:radial-gradient(ellipse,rgba(200,242,90,.07) 0%,transparent 70%);pointer-events:none;}
+
+/* ─ Header ─────────────────────────────────────────── */
+header{width:100%;max-width:780px;display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;gap:12px;}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:36px;height:36px;border-radius:10px;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.logo-title{font-size:20px;font-weight:700;letter-spacing:-.02em}
+.logo-title span{color:var(--acc)}
+
+.lang-toggle{display:flex;gap:4px;background:var(--s2);padding:4px;border-radius:10px;border:1px solid var(--brd)}
+.lang-btn{font-family:'DM Mono',monospace;font-size:12px;font-weight:500;padding:6px 12px;border:none;border-radius:7px;background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent}
+.lang-btn.active{background:var(--acc);color:#0e0e0f}
+
+/* ─ Card ────────────────────────────────────────────── */
+.card{width:100%;max-width:780px;background:var(--s1);border:1px solid var(--brd);border-radius:18px;overflow:hidden;margin-bottom:12px}
+
+/* ─ Zone label ─ */
+.zone-label{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.zone-label::after{content:'';flex:1;height:1px;background:var(--brd)}
+.zone-sep{border-top:1px solid var(--brd)}
+
+/* ─ Textarea ─ */
+.text-zone{padding:20px}
+textarea{width:100%;min-height:180px;background:var(--s2);border:1px solid var(--brd);border-radius:10px;color:var(--txt);font-family:'Bricolage Grotesque',sans-serif;font-size:15px;font-weight:300;line-height:1.7;padding:14px;resize:vertical;outline:none;transition:border-color .2s;-webkit-user-select:text;user-select:text}
+textarea:focus{border-color:rgba(200,242,90,.4);box-shadow:0 0 0 3px rgba(200,242,90,.05)}
+textarea::placeholder{color:var(--muted)}
+.meta-row{display:flex;justify-content:space-between;margin-top:8px;align-items:center}
+.char-count{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
+.chunk-badge{font-family:'DM Mono',monospace;font-size:10px;background:rgba(200,242,90,.1);color:var(--acc);border:1px solid rgba(200,242,90,.25);padding:2px 8px;border-radius:20px;opacity:0;transition:opacity .3s}
+.chunk-badge.on{opacity:1}
+
+/* ─ AI Section ─ */
+.ai-section{border-top:1px solid var(--brd)}
+.ai-toggle{width:100%;background:none;border:none;color:var(--txt);font-family:'Bricolage Grotesque',sans-serif;font-size:14px;font-weight:500;padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:transparent}
+.ai-toggle:hover{background:rgba(255,255,255,.02)}
+.ai-toggle .arrow{font-size:10px;color:var(--muted);transition:transform .2s}
+.ai-toggle.open .arrow{transform:rotate(180deg)}
+.ai-body{display:none;padding:0 20px 20px}
+.ai-body.open{display:block}
+
+.api-row{display:flex;gap:8px;margin-bottom:12px}
+.api-row input{flex:1;background:var(--s2);border:1px solid var(--brd);border-radius:8px;color:var(--txt);font-family:'DM Mono',monospace;font-size:12px;padding:9px 12px;outline:none;transition:border-color .2s}
+.api-row input:focus{border-color:rgba(200,242,90,.4)}
+.api-row input::placeholder{color:var(--muted)}
+.btn-save{background:var(--s2);border:1px solid var(--brd);border-radius:8px;color:var(--txt);font-family:'Bricolage Grotesque',sans-serif;font-size:13px;font-weight:500;padding:9px 14px;cursor:pointer;white-space:nowrap;transition:all .15s}
+.btn-save:hover{border-color:var(--acc);color:var(--acc)}
+
+.prompt-area{width:100%;min-height:80px;background:var(--s2);border:1px solid var(--brd);border-radius:10px;color:var(--txt);font-family:'Bricolage Grotesque',sans-serif;font-size:14px;font-weight:300;line-height:1.6;padding:12px 14px;resize:vertical;outline:none;margin-bottom:12px;transition:border-color .2s;-webkit-user-select:text;user-select:text}
+.prompt-area:focus{border-color:rgba(200,242,90,.4)}
+.prompt-area::placeholder{color:var(--muted)}
+
+.ai-result{background:var(--s2);border:1px solid rgba(200,242,90,.2);border-radius:10px;padding:16px;margin-top:14px}
+.ai-result-label{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--acc);text-transform:uppercase;margin-bottom:10px}
+.ai-result-text{font-size:14px;line-height:1.75;font-weight:300;white-space:pre-wrap;margin-bottom:14px;max-height:280px;overflow-y:auto}
+.ai-result-text::-webkit-scrollbar{width:4px}
+.ai-result-text::-webkit-scrollbar-track{background:transparent}
+.ai-result-text::-webkit-scrollbar-thumb{background:var(--brd);border-radius:2px}
+
+/* ─ Controls ─ */
+.controls-zone{padding:18px 20px;border-top:1px solid var(--brd);display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.control-group{display:flex;flex-direction:column;gap:6px}
+label{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+select{background:var(--s2);border:1px solid var(--brd);border-radius:8px;color:var(--txt);font-family:'Bricolage Grotesque',sans-serif;font-size:13px;padding:8px 10px;outline:none;width:100%;cursor:pointer;transition:border-color .2s;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+select:focus{border-color:rgba(200,242,90,.4)}
+select option{background:#1e1e21}
+
+.rval{font-family:'DM Mono',monospace;font-size:11px;color:var(--acc)}
+input[type=range]{width:100%;height:34px;appearance:none;-webkit-appearance:none;background:transparent;border:none;outline:none}
+input[type=range]::-webkit-slider-track{height:4px;background:var(--brd);border-radius:2px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;background:var(--acc);border-radius:50%;cursor:pointer;margin-top:-7px;transition:transform .15s}
+input[type=range]:active::-webkit-slider-thumb{transform:scale(1.25)}
+
+/* ─ Progress ─ */
+.progress-zone{padding:14px 20px;border-top:1px solid var(--brd)}
+.progress-track{height:5px;background:var(--s2);border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));border-radius:3px;width:0%;transition:width .4s linear}
+.progress-info{display:flex;justify-content:space-between;margin-top:8px;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)}
+
+/* ─ Word display ─ */
+.word-display{padding:10px 20px;border-top:1px solid var(--brd);min-height:44px;display:flex;align-items:center}
+.current-word{font-size:18px;font-weight:500;color:var(--acc);opacity:0;transform:translateY(4px);transition:opacity .1s,transform .1s}
+.current-word.on{opacity:1;transform:translateY(0)}
+
+/* ─ Buttons ─ */
+.btn-zone{padding:16px 20px;border-top:1px solid var(--brd);display:flex;gap:8px}
+.btn{font-family:'Bricolage Grotesque',sans-serif;font-size:14px;font-weight:500;border:none;border-radius:10px;padding:13px 20px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:7px;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.btn-primary{background:var(--acc);color:#0e0e0f;flex:1;justify-content:center}
+.btn-primary:hover{background:#d4f76b}
+.btn-primary:active{transform:scale(.97)}
+.btn-secondary{background:var(--s2);color:var(--txt);border:1px solid var(--brd)}
+.btn-secondary:hover{border-color:var(--muted)}
+.btn-danger{background:rgba(242,90,90,.1);color:var(--danger);border:1px solid rgba(242,90,90,.2)}
+.btn-danger:hover{background:rgba(242,90,90,.18)}
+.btn-ai{background:rgba(200,242,90,.12);color:var(--acc);border:1px solid rgba(200,242,90,.25);width:100%;justify-content:center;font-size:14px;font-weight:500;border-radius:9px;padding:11px;cursor:pointer;font-family:'Bricolage Grotesque',sans-serif;transition:all .15s}
+.btn-ai:hover{background:rgba(200,242,90,.2)}
+.btn-ai:disabled{opacity:.4;cursor:not-allowed}
+.btn-read{background:rgba(90,242,184,.1);color:var(--acc2);border:1px solid rgba(90,242,184,.2);border-radius:9px;padding:9px 16px;font-family:'Bricolage Grotesque',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent}
+.btn-read:hover{background:rgba(90,242,184,.18)}
+.btn:disabled,.btn-read:disabled{opacity:.35;cursor:not-allowed;transform:none!important}
+
+/* ─ Status ─ */
+.status{display:flex;align-items:center;gap:8px;padding:10px 20px;border-top:1px solid var(--brd);background:rgba(200,242,90,.02);font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);transition:background .3s;flex-shrink:0}
+.dot.playing{background:var(--acc);animation:pulse 1.2s ease-in-out infinite}
+.dot.paused{background:var(--warn)}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+
+/* ─ Info cards ─ */
+.info-cards{width:100%;max-width:780px;display:flex;flex-direction:column;gap:8px}
+.info-card{background:var(--s1);border:1px solid var(--brd);border-radius:12px;padding:14px 16px;font-size:13px;line-height:1.6;font-weight:300;display:flex;gap:10px;align-items:flex-start}
+.info-card .ico{font-size:17px;flex-shrink:0;margin-top:1px}
+.info-card strong{font-weight:600;color:var(--txt);display:block;margin-bottom:2px}
+.info-card .sub{color:var(--muted)}
+.info-card.ok .ico{color:var(--acc2)}
+.info-card.warn .ico{color:var(--warn)}
+
+/* ─ Toast ─ */
+#toast{position:fixed;bottom:calc(30px + var(--safe));left:50%;transform:translateX(-50%) translateY(20px);background:#2a2a2e;color:var(--txt);font-family:'DM Mono',monospace;font-size:12px;padding:10px 20px;border-radius:30px;border:1px solid var(--brd);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;z-index:999;white-space:nowrap}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ─ Responsive ─ */
+@media(max-width:520px){
+  .controls-zone{grid-template-columns:1fr}
+  .btn-zone{flex-direction:column}
+  .btn-primary{flex:none}
+  header{flex-direction:column;align-items:flex-start;gap:10px}
+}
+</style>
+</head>
+<body>
+
+<!-- Silent audio loop → keeps iOS audio session alive screen-off -->
+<audio id="sil" loop preload="auto">
+  <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=" type="audio/wav">
+</audio>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🔊</div>
+    <div class="logo-title">Lecteur <span>Vocal</span></div>
+  </div>
+  <div class="lang-toggle">
+    <button class="lang-btn active" data-lang="fr" onclick="setLang('fr')">🇫🇷 FR</button>
+    <button class="lang-btn" data-lang="en" onclick="setLang('en')">🇬🇧 EN</button>
+  </div>
+</header>
+
+<div class="card">
+
+  <!-- ── TEXT ── -->
+  <div class="text-zone">
+    <div class="zone-label">Texte à lire</div>
+    <textarea id="textInput" placeholder="Colle ton texte ici…&#10;&#10;Articles, cours, rapports — texte illimité, découpé automatiquement."></textarea>
+    <div class="meta-row">
+      <div class="char-count"><span id="charCount">0</span> car. · <span id="wordTotal">0</span> mots</div>
+      <div class="chunk-badge" id="chunkBadge">— seg.</div>
+    </div>
+  </div>
+
+  <!-- ── AI ── -->
+  <div class="ai-section">
+    <button class="ai-toggle" id="aiToggle" onclick="toggleAI()">
+      <span>✨ Analyser avec Claude IA</span>
+      <span class="arrow">▼</span>
+    </button>
+    <div class="ai-body" id="aiBody">
+
+      <div class="zone-label" style="margin-top:4px">Clé API Anthropic</div>
+      <div class="api-row">
+        <input type="password" id="apiKey" placeholder="sk-ant-api03-…  (sauvegardée localement)">
+        <button class="btn-save" onclick="saveKey()">Sauver</button>
+      </div>
+
+      <div class="zone-label">Ton prompt</div>
+      <textarea class="prompt-area" id="aiPrompt"
+        placeholder="Ex: Fais-moi un résumé de toutes les informations et données importantes avec les chiffres et mesures.&#10;&#10;Ex: Liste les 5 points clés de ce texte en bullet points.&#10;&#10;Ex: Traduis ce texte en français et résume-le."></textarea>
+
+      <button class="btn-ai" id="btnAnalyze" onclick="analyzeText()">✨ Analyser le texte</button>
+
+      <div class="ai-result" id="aiResult" style="display:none">
+        <div class="ai-result-label">Réponse de Claude</div>
+        <div class="ai-result-text" id="aiResultText"></div>
+        <button class="btn-read" onclick="readResult()">▶ Écouter ce résumé</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── CONTROLS ── -->
+  <div class="controls-zone">
+    <div class="control-group">
+      <label>Voix</label>
+      <select id="voiceSelect"><option>Chargement…</option></select>
+    </div>
+    <div class="control-group">
+      <label>Vitesse — <span class="rval" id="spdV">1.0×</span></label>
+      <input type="range" id="speed" min="0.5" max="2.5" step="0.1" value="1">
+    </div>
+    <div class="control-group" style="grid-column:1/-1">
+      <label>Hauteur — <span class="rval" id="pthV">1.0</span></label>
+      <input type="range" id="pitch" min="0.5" max="2" step="0.1" value="1">
+    </div>
+  </div>
+
+  <!-- ── PROGRESS ── -->
+  <div class="progress-zone">
+    <div class="progress-track"><div class="progress-fill" id="pFill"></div></div>
+    <div class="progress-info">
+      <span id="pLabel">0 / 0 segments</span>
+      <span id="pPct">0 %</span>
+    </div>
+  </div>
+
+  <!-- ── WORD ── -->
+  <div class="word-display">
+    <div class="current-word" id="curWord">—</div>
+  </div>
+
+  <!-- ── BUTTONS ── -->
+  <div class="btn-zone">
+    <button class="btn btn-primary" id="btnPlay" onclick="togglePlay()">▶ Lire</button>
+    <button class="btn btn-secondary" id="btnPause" onclick="togglePause()" disabled>⏸ Pause</button>
+    <button class="btn btn-danger" id="btnStop" onclick="stopAll()" disabled>■ Stop</button>
+  </div>
+
+  <div class="status">
+    <div class="dot" id="statusDot"></div>
+    <span id="statusTxt">En attente de texte…</span>
+  </div>
+
+</div><!-- /card -->
+
+<!-- Info cards -->
+<div class="info-cards">
+  <div class="info-card ok">
+    <div class="ico">📵</div>
+    <div>
+      <strong>Écran éteint</strong>
+      <div class="sub">Lance la lecture → éteins l'écran. Les contrôles apparaissent dans le Centre de Contrôle et sur l'écran de verrouillage (⏸ ■). L'audio continue grâce au maintien de session.</div>
+    </div>
+  </div>
+  <div class="info-card warn">
+    <div class="ico">🎵</div>
+    <div>
+      <strong>Spotify en même temps</strong>
+      <div class="sub">iOS ne permet pas deux sources audio web simultanément. Astuce : écoute Spotify sur un autre appareil (Mac, iPad) dans un AirPod, et la lecture vocale sur l'iPhone dans l'autre.</div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const synth = window.speechSynthesis;
+let voices=[], chunks=[], chunkIdx=0, totalW=0, spokenW=0;
+let playing=false, paused=false, currentLang='fr';
+
+// ── Manifest / PWA ───────────────────────────────────
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt', e=>{e.preventDefault(); deferredPrompt=e;});
+
+// ── Silent audio (iOS screen-off trick) ─────────────
+function startSilent(){ document.getElementById('sil').play().catch(()=>{}); }
+document.addEventListener('touchstart', startSilent, {once:true,passive:true});
+document.addEventListener('click', startSilent, {once:true});
+
+// ── Media Session API ────────────────────────────────
+function setupMS(){
+  if(!('mediaSession' in navigator)) return;
+  navigator.mediaSession.metadata = new MediaMetadata({title:'Lecteur Vocal', artist:'', album:''});
+  navigator.mediaSession.setActionHandler('play', ()=>{ if(paused) togglePause(); else if(!playing) togglePlay(); });
+  navigator.mediaSession.setActionHandler('pause', ()=>{ if(playing&&!paused) togglePause(); });
+  navigator.mediaSession.setActionHandler('stop', ()=>stopAll());
+}
+setupMS();
+
+// ── Language ─────────────────────────────────────────
+function setLang(l){
+  currentLang=l;
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b.dataset.lang===l));
+  const ta=document.getElementById('textInput');
+  ta.placeholder = l==='fr'
+    ? 'Colle ton texte ici…\n\nArticles, cours, rapports — texte illimité, découpé automatiquement.'
+    : 'Paste your text here…\n\nArticles, documents, reports — unlimited text, auto-chunked.';
+  loadVoices();
+}
+
+// ── Voices ───────────────────────────────────────────
+function loadVoices(){
+  voices = synth.getVoices();
+  const sel = document.getElementById('voiceSelect');
+  sel.innerHTML='';
+  let list = voices.filter(v=>v.lang.toLowerCase().startsWith(currentLang));
+  if(!list.length) list=voices;
+  list.forEach(v=>{
+    const o=document.createElement('option');
+    o.value=voices.indexOf(v);
+    o.textContent=`${v.name} (${v.lang})`;
+    if(v.default) o.selected=true;
+    sel.appendChild(o);
+  });
+}
+synth.onvoiceschanged=loadVoices; loadVoices();
+
+// ── Ranges ───────────────────────────────────────────
+document.getElementById('speed').addEventListener('input',e=>
+  document.getElementById('spdV').textContent=parseFloat(e.target.value).toFixed(1)+'×');
+document.getElementById('pitch').addEventListener('input',e=>
+  document.getElementById('pthV').textContent=parseFloat(e.target.value).toFixed(1));
+
+// ── Text meta ────────────────────────────────────────
+document.getElementById('textInput').addEventListener('input', e=>{
+  const t=e.target.value; updateMeta(t); if(!playing) setStatus('idle');
+});
+
+function updateMeta(txt){
+  const words=txt.trim().split(/\s+/).filter(Boolean);
+  document.getElementById('charCount').textContent=txt.length;
+  document.getElementById('wordTotal').textContent=words.length;
+  const c=chunk(txt.trim()); const cb=document.getElementById('chunkBadge');
+  if(c.length>1){cb.textContent=c.length+' seg.';cb.classList.add('on');}
+  else cb.classList.remove('on');
+}
+
+// ── Chunking ─────────────────────────────────────────
+function chunk(text, max=3000){
+  if(text.length<=max) return [text];
+  const sentences=text.match(/[^.!?…\n]+[.!?…\n]*/g)||[text];
+  const res=[]; let cur='';
+  for(const s of sentences){
+    if((cur+s).length>max && cur){ res.push(cur.trim()); cur=s; }
+    else cur+=s;
+  }
+  if(cur.trim()) res.push(cur.trim());
+  return res;
+}
+
+// ── AI Section ───────────────────────────────────────
+function toggleAI(){
+  const body=document.getElementById('aiBody');
+  const btn=document.getElementById('aiToggle');
+  body.classList.toggle('open');
+  btn.classList.toggle('open');
+}
+
+function saveKey(){
+  const k=document.getElementById('apiKey').value.trim();
+  if(!k){ toast('⚠ Clé vide'); return; }
+  try{ localStorage.setItem('lv_key',k); toast('✓ Clé sauvegardée'); }
+  catch(e){ toast('✓ Clé en mémoire (session)'); }
+}
+
+// Load saved key
+try{ const sk=localStorage.getItem('lv_key'); if(sk) document.getElementById('apiKey').value=sk; }catch(e){}
+
+async function analyzeText(){
+  const text=document.getElementById('textInput').value.trim();
+  const prompt=document.getElementById('aiPrompt').value.trim();
+  let key=document.getElementById('apiKey').value.trim();
+  try{ key=key||localStorage.getItem('lv_key')||''; }catch(e){}
+
+  if(!text){toast('⚠ Colle du texte d\'abord');return;}
+  if(!prompt){toast('⚠ Écris ton prompt');return;}
+  if(!key){toast('⚠ Entre ta clé API Anthropic');return;}
+
+  const btn=document.getElementById('btnAnalyze');
+  btn.disabled=true; btn.textContent='⏳ Analyse en cours…';
+  document.getElementById('aiResult').style.display='none';
+
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key':key,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1500,
+        messages:[{role:'user',content:`Voici le texte :\n\n${text}\n\n---\n\n${prompt}`}]
+      })
+    });
+    if(!res.ok){ const e=await res.json(); throw new Error(e.error?.message||`Erreur ${res.status}`); }
+    const data=await res.json();
+    const answer=data.content?.[0]?.text||'Pas de réponse.';
+    document.getElementById('aiResultText').textContent=answer;
+    document.getElementById('aiResult').style.display='block';
+    document.getElementById('aiResult').scrollIntoView({behavior:'smooth',block:'nearest'});
+  }catch(err){
+    toast('❌ '+err.message);
+  }finally{
+    btn.disabled=false; btn.textContent='✨ Analyser le texte';
+  }
+}
+
+function readResult(){
+  const txt=document.getElementById('aiResultText').textContent;
+  if(!txt) return;
+  document.getElementById('textInput').value=txt;
+  updateMeta(txt); stopAll();
+  setTimeout(()=>togglePlay(),120);
+}
+
+// ── Playback ─────────────────────────────────────────
+function speakChunk(idx){
+  if(idx>=chunks.length){
+    playing=false; paused=false;
+    document.getElementById('pFill').style.width='100%';
+    document.getElementById('pPct').textContent='100 %';
+    showWord(''); updBtns(); setStatus('done');
+    if('mediaSession' in navigator) navigator.mediaSession.playbackState='none';
+    return;
+  }
+
+  const u=new SpeechSynthesisUtterance(chunks[idx]);
+  const vi=document.getElementById('voiceSelect').value;
+  if(vi!=='') u.voice=voices[parseInt(vi)];
+  u.rate=parseFloat(document.getElementById('speed').value);
+  u.pitch=parseFloat(document.getElementById('pitch').value);
+  const cw=chunks[idx].split(/\s+/).filter(Boolean);
+
+  u.onboundary=e=>{
+    if(e.name!=='word') return;
+    const sp=chunks[idx].substring(0,e.charIndex).split(/\s+/).filter(Boolean).length;
+    const g=spokenW+sp;
+    const pct=Math.round((g/totalW)*100);
+    document.getElementById('pFill').style.width=pct+'%';
+    document.getElementById('pPct').textContent=pct+' %';
+    document.getElementById('pLabel').textContent=`${idx+1} / ${chunks.length} segments`;
+    const w=cw[Math.max(0,sp-1)]; if(w) showWord(w);
+  };
+  u.onend=()=>{
+    if(!playing) return;
+    spokenW+=cw.length; chunkIdx=idx+1;
+    speakChunk(chunkIdx);
+  };
+  u.onerror=e=>{ if(e.error!=='interrupted'){ playing=false; updBtns(); setStatus('idle'); } };
+  synth.speak(u);
+
+  if('mediaSession' in navigator){
+    navigator.mediaSession.playbackState='playing';
+    navigator.mediaSession.metadata=new MediaMetadata({
+      title:'Lecteur Vocal',
+      artist:`Segment ${idx+1}/${chunks.length}`,
+    });
+  }
+}
+
+function togglePlay(){
+  const text=document.getElementById('textInput').value.trim();
+  if(!text){toast('⚠ Colle du texte d\'abord');return;}
+  if(paused){
+    synth.resume(); paused=false; playing=true;
+    updBtns(); setStatus('playing');
+    if('mediaSession' in navigator) navigator.mediaSession.playbackState='playing';
+    return;
+  }
+  stopAll();
+  chunks=chunk(text); chunkIdx=0; spokenW=0;
+  totalW=text.split(/\s+/).filter(Boolean).length;
+  playing=true; paused=false;
+  updBtns(); setStatus('playing');
+  speakChunk(0);
+}
+
+function togglePause(){
+  if(!playing) return;
+  if(!paused){
+    synth.pause(); paused=true; updBtns(); setStatus('paused');
+    if('mediaSession' in navigator) navigator.mediaSession.playbackState='paused';
+  } else {
+    synth.resume(); paused=false; updBtns(); setStatus('playing');
+    if('mediaSession' in navigator) navigator.mediaSession.playbackState='playing';
+  }
+}
+
+function stopAll(){
+  synth.cancel(); playing=false; paused=false; chunkIdx=0; spokenW=0;
+  document.getElementById('pFill').style.width='0%';
+  document.getElementById('pLabel').textContent='0 / 0 segments';
+  document.getElementById('pPct').textContent='0 %';
+  showWord(''); updBtns(); setStatus('idle');
+  if('mediaSession' in navigator) navigator.mediaSession.playbackState='none';
+}
+
+// ── UI ────────────────────────────────────────────────
+function showWord(w){
+  const el=document.getElementById('curWord');
+  el.classList.remove('on');
+  setTimeout(()=>{ el.textContent=w||'—'; if(w) el.classList.add('on'); },50);
+}
+
+function updBtns(){
+  const p=document.getElementById('btnPlay');
+  const pa=document.getElementById('btnPause');
+  const s=document.getElementById('btnStop');
+  if(playing&&!paused){
+    p.textContent='▶ Lire'; p.disabled=true;
+    pa.textContent='⏸ Pause'; pa.disabled=false;
+    s.disabled=false;
+  } else if(paused){
+    p.textContent='▶ Reprendre'; p.disabled=false;
+    pa.textContent='⏸ En pause'; pa.disabled=false;
+    s.disabled=false;
+  } else {
+    p.textContent='▶ Lire'; p.disabled=false;
+    pa.textContent='⏸ Pause'; pa.disabled=true;
+    s.disabled=true;
+  }
+}
+
+function setStatus(s){
+  const dot=document.getElementById('statusDot');
+  const txt=document.getElementById('statusTxt');
+  dot.className='dot';
+  const m={
+    playing:[()=>dot.classList.add('playing'),'Lecture en cours…'],
+    paused: [()=>dot.classList.add('paused'),'En pause'],
+    done:   [null,'✓ Lecture terminée'],
+    idle:   [null, document.getElementById('textInput').value.trim()?'Prêt à lire':'En attente de texte…'],
+  };
+  const [fn,label]=m[s]||m.idle;
+  if(fn) fn(); txt.textContent=label;
+}
+
+let toastTimer=null;
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('on'),3000);
+}
+
+setStatus('idle');
+</script>
+</body>
+</html>
